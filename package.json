@@ -1,0 +1,17 @@
+{
+  "name": "hotness-index",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A personal feels-like heat index, with a live weather mode and a manual try-it-yourself mode.",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^4.19.2"
+  }
+}
