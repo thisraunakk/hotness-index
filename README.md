@@ -14,7 +14,7 @@ npm start
 
 Open `http://localhost:3000`.
 
-No API keys are needed for the weather or location-name lookups — both are free, keyless APIs. The only secret in this project is your **Discord webhook URL**, which lives in `.env` (already gitignored — never commit it).
+No API keys are needed for the weather or location-name lookups — both are free, keyless APIs.
 
 ## What's calling out, and why
 
