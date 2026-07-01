@@ -9,7 +9,6 @@ A personal "feels-like" heat scale from 0–10, where 5 means neutral. Has two m
 
 ```
 npm install
-cp .env.example .env   # then paste your real Discord webhook URL into .env
 npm start
 ```
 
