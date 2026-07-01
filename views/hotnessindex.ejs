@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Hotness index</title>
 <style>
   * { box-sizing: border-box; }
@@ -16,6 +16,7 @@
     --text-muted: #8a8170;
     --cold: #5b7fa6;
     --hot: #d8432a;
+    --rain: #5b8fd8;
     --mono: 'SF Mono', Menlo, Consolas, 'Roboto Mono', monospace;
     --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   }
@@ -52,8 +53,8 @@
   .field-label-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; }
   .field-label { color: var(--text-secondary); }
   .field-value { font-family: var(--mono); color: var(--text); }
-  input[type="range"] { width: 100%; --webkit-appearance: none; height: 4px; background: var(--surface-2); border-radius: 2px; outline: none; }
-  input[type="range"]::-webkit-slider-thumb { --webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--text); cursor: pointer; border: 2px solid var(--bg); }
+  input[type="range"] { width: 100%; -webkit-appearance: none; height: 4px; background: var(--surface-2); border-radius: 2px; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--text); cursor: pointer; border: 2px solid var(--bg); }
   input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--text); cursor: pointer; border: 2px solid var(--bg); }
 
   .toggle-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-secondary); cursor: pointer; margin-bottom: 4px; }
@@ -67,19 +68,97 @@
   .formula { margin-top: 28px; border-top: 1px solid var(--border); padding-top: 16px; font-size: 12px; color: var(--text-muted); line-height: 1.7; font-family: var(--mono); }
   .formula-label { font-family: var(--sans); color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
 
-  /* --- additions below: mode toggle, location line, disabled inputs, credit footer --- */
+  /* --- mode toggle, location line, disabled inputs, credit footer --- */
   .mode-toggle { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px; margin-bottom: 24px; }
   .mode-btn { flex: 1; background: transparent; border: none; color: var(--text-muted); font-size: 13px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-family: var(--sans); }
   .mode-btn.active { background: var(--surface-2); color: var(--text); }
 
-  .readout-location { font-size: 13px; color: var(--text-muted); margin: 4px 0 0; font-family: var(--sans); }
+  .readout-location-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 0; }
+  .readout-location { font-size: 13px; color: var(--text-muted); margin: 0; font-family: var(--sans); }
+
+  .refresh-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; flex-shrink: 0;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text-secondary); cursor: pointer; padding: 0;
+  }
+  .refresh-btn:hover { color: var(--text); border-color: var(--text-muted); }
+  .refresh-btn svg { width: 15px; height: 15px; transition: transform 0.5s ease; }
+  .refresh-btn.spinning svg { animation: spin 0.9s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  .rain-line { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--rain); margin: 10px 0 0; font-family: var(--mono); }
+  .rain-line svg { width: 13px; height: 13px; flex-shrink: 0; }
 
   input[type="range"]:disabled { opacity: 0.45; cursor: not-allowed; }
   .toggle-row input:disabled { opacity: 0.45; cursor: not-allowed; }
 
+  /* --- forecast sections --- */
+  .forecast-section { display: none; margin-bottom: 22px; }
+  .forecast-section.visible { display: block; }
+  .forecast-heading { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 10px; }
+
+  .hourly-scroll {
+    display: flex; gap: 2px; overflow-x: auto; padding: 16px 12px 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .hourly-scroll::-webkit-scrollbar { display: none; }
+  .hour-item {
+    flex: 0 0 auto; width: 50px; display: flex; flex-direction: column; align-items: center;
+    gap: 6px; font-family: var(--mono); font-size: 11.5px; color: var(--text-secondary);
+  }
+  .hour-item .h-time { color: var(--text-muted); }
+  .hour-item .h-icon { width: 19px; height: 19px; }
+  .hour-item .h-index { font-size: 16px; font-weight: 700; line-height: 1; }
+  .hour-item .h-temp { color: var(--text-muted); font-weight: 500; font-size: 11px; }
+  .hour-item .h-rain { color: var(--rain); font-size: 10.5px; min-height: 13px; }
+
+  .daily-list {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 6px 16px;
+  }
+  .day-row {
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+    font-family: var(--sans); font-size: 13.5px;
+  }
+  .day-row:last-child { border-bottom: none; }
+  .day-row.is-today .d-label { color: var(--text); font-weight: 600; }
+  .d-row-main { display: flex; align-items: baseline; justify-content: space-between; }
+  .d-label { color: var(--text-secondary); }
+  .d-index { font-family: var(--mono); font-size: 17px; font-weight: 700; }
+  .d-row-sub { display: flex; align-items: center; gap: 10px; }
+  .d-icon-wrap { width: 22px; flex-shrink: 0; display: flex; justify-content: center; color: var(--text-muted); }
+  .d-icon-wrap svg { width: 18px; height: 18px; }
+  .d-rain { width: 32px; flex-shrink: 0; font-family: var(--mono); font-size: 11px; color: var(--rain); text-align: right; }
+  .d-lo { width: 28px; flex-shrink: 0; font-family: var(--mono); font-size: 12px; color: var(--text-muted); text-align: right; }
+  .d-bar-wrap { flex: 1; height: 4px; position: relative; background: var(--surface-2); border-radius: 3px; }
+  .d-bar-fill { position: absolute; top: 0; height: 4px; border-radius: 3px; background: linear-gradient(to right, var(--cold), var(--hot)); }
+  .d-hi { width: 28px; flex-shrink: 0; font-family: var(--mono); font-size: 12px; color: var(--text-secondary); text-align: right; }
+
   .credit { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted); text-align: center; }
   .credit a { color: var(--text-secondary); text-decoration: none; border-bottom: 1px dotted var(--text-muted); }
   .credit a:hover { color: var(--text); }
+
+  /* --- phone responsiveness --- */
+  @media (max-width: 480px) {
+    body { padding: 24px 12px 40px; }
+    h1 { font-size: 21px; }
+    .readout { padding: 20px; border-radius: 14px; }
+    .readout-num { font-size: 46px; }
+    .presets { gap: 6px; }
+    .preset-btn { min-width: 0; font-size: 11.5px; padding: 9px 6px; }
+    .d-label { width: 54px; font-size: 12.5px; }
+    .d-rain { width: 30px; }
+    .hour-item { width: 42px; }
+    .daily-list { padding: 4px 12px; }
+    .hourly-scroll { padding: 14px 10px 12px; }
+  }
+  @media (max-width: 360px) {
+    .d-lo, .d-hi { width: 26px; font-size: 11.5px; }
+    .d-label { width: 46px; font-size: 12px; }
+  }
 </style>
 </head>
 <body>
@@ -99,13 +178,34 @@
       <span class="readout-band" id="band-label">Neutral</span>
     </div>
     <p class="readout-feels">feels like <span id="feels-out">20.0°C</span></p>
-    <p class="readout-location" id="location-line" style="display: none;">in <span id="location-name">locating…</span></p>
+    <p class="rain-line" id="rain-line" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 19v1M8 14v1M16 19v1M16 14v1M12 21v1M12 16v1"/><path d="M20 12a4 4 0 0 0-3-6 5 5 0 0 0-9.3-1A4.5 4.5 0 0 0 6 13h13a3 3 0 0 0 1-1z"/></svg>
+      <span id="rain-out">0%</span> chance of rain right now
+    </p>
+    <div class="readout-location-row">
+      <p class="readout-location" id="location-line" style="display: none;">in <span id="location-name">locating…</span></p>
+      <button class="refresh-btn" id="refresh-btn" type="button" title="Refresh weather" style="display: none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </button>
+    </div>
     <div class="gauge-wrap">
       <div class="gauge-track">
         <div class="gauge-marker" id="marker"></div>
       </div>
       <div class="gauge-scale"><span>0 cold</span><span>5 neutral</span><span>10 hot</span></div>
     </div>
+  </div>
+
+  <!-- Hourly graph: next 24 hours, Apple-Weather-style scroll strip -->
+  <div class="forecast-section" id="hourly-section">
+    <p class="forecast-heading">Next 24 hours</p>
+    <div class="hourly-scroll" id="hourly-scroll"></div>
+  </div>
+
+  <!-- Daily list: 2 days back, today, next 6 days -->
+  <div class="forecast-section" id="daily-section">
+    <p class="forecast-heading">9-day outlook</p>
+    <div class="daily-list" id="daily-list"></div>
   </div>
 
   <div class="presets">
@@ -165,6 +265,35 @@ function band(H) {
   if (H < 8.5) return 'Hot';
   return 'Scorching';
 }
+
+// Same formula the manual sliders use, reused for every hourly/daily
+// forecast entry so the outlook reflects *your* calibration, not just raw
+// temperature.
+function hotnessValue(T, RH, windKmh, sun, neutral, k) {
+  var windMs = windKmh / 3.6;
+  var e = vaporPressure(T, RH);
+  var AT = T + 0.33 * e - 0.7 * windMs - 4.0;
+  if (sun) { AT += 3; }
+  var H = 10 / (1 + Math.exp(-k * (AT - neutral)));
+  return { H: H, AT: AT };
+}
+
+function currentCalibration() {
+  return {
+    neutral: parseFloat(document.getElementById('neutral').value),
+    k: parseFloat(document.getElementById('sens').value)
+  };
+}
+
+// Interpolates between the cold and hot accent colors for a 0-10 index,
+// so each forecast number is tinted the same way the gauge is.
+function hIndexColor(H) {
+  var t = Math.min(1, Math.max(0, H / 10));
+  var cold = [0x5b, 0x7f, 0xa6];
+  var hot = [0xd8, 0x43, 0x2a];
+  var rgb = cold.map(function (c, i) { return Math.round(c + (hot[i] - c) * t); });
+  return 'rgb(' + rgb.join(',') + ')';
+}
 var tempEl = document.getElementById('temp');
 var humEl = document.getElementById('hum');
 var windEl = document.getElementById('wind');
@@ -188,11 +317,9 @@ function calc() {
   var sun = sunEl.checked;
   var neutral = parseFloat(neutralEl.value);
   var k = parseFloat(sensEl.value);
-  var windMs = windKmh / 3.6;
-  var e = vaporPressure(T, RH);
-  var AT = T + 0.33 * e - 0.7 * windMs - 4.0;
-  if (sun) { AT += 3; }
-  var H = 10 / (1 + Math.exp(-k * (AT - neutral)));
+  var result = hotnessValue(T, RH, windKmh, sun, neutral, k);
+  var AT = result.AT;
+  var H = result.H;
 
   tempOut.textContent = T.toFixed(0) + '°C';
   humOut.textContent = RH.toFixed(0) + '%';
@@ -214,13 +341,50 @@ function setPreset(t, h, w, s) {
 });
 calc();
 
+/* --- weather icons (line-style SVGs, inherit currentColor) --- */
+function weatherIcon(code, isDay) {
+  isDay = isDay !== false;
+  var c = Number(code);
+  var stroke = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
+  var end = '</svg>';
+  if (c === 0 || c === 1) {
+    return isDay
+      ? stroke + '<circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>' + end
+      : stroke + '<path d="M20 14.5a8 8 0 1 1-9.5-9.7 6.5 6.5 0 0 0 9.5 9.7z"/>' + end;
+  }
+  if (c === 2 || c === 3) {
+    return stroke + '<path d="M7 17a4 4 0 0 1 .3-8 5.5 5.5 0 0 1 10.6 1.7A3.5 3.5 0 0 1 17 17H7z"/>' + end;
+  }
+  if (c === 45 || c === 48) {
+    return stroke + '<path d="M3 9h18M3 13h18M3 17h12"/>' + end;
+  }
+  if ([51,53,55,56,57,61,63,65,66,67,80,81,82].indexOf(c) !== -1) {
+    return stroke + '<path d="M7 15a4 4 0 0 1 .3-8 5.5 5.5 0 0 1 10.6 1.7A3.5 3.5 0 0 1 17 15H7z"/><path d="M8 18l-1 2M12 18l-1 2M16 18l-1 2"/>' + end;
+  }
+  if ([71,73,75,77,85,86].indexOf(c) !== -1) {
+    return stroke + '<path d="M7 15a4 4 0 0 1 .3-8 5.5 5.5 0 0 1 10.6 1.7A3.5 3.5 0 0 1 17 15H7z"/><path d="M9 18v3M12 18v3M15 18v3M8 19.5h2M11 19.5h2M14 19.5h2"/>' + end;
+  }
+  if ([95,96,99].indexOf(c) !== -1) {
+    return stroke + '<path d="M7 13a4 4 0 0 1 .3-8 5.5 5.5 0 0 1 10.6 1.7A3.5 3.5 0 0 1 17 13H7z"/><path d="M12.5 14l-2.5 4h3l-2 4"/>' + end;
+  }
+  return stroke + '<path d="M7 17a4 4 0 0 1 .3-8 5.5 5.5 0 0 1 10.6 1.7A3.5 3.5 0 0 1 17 17H7z"/>' + end;
+}
+
 /* --- live / manual mode handling --- */
 var modeLiveBtn = document.getElementById('mode-live');
 var modeManualBtn = document.getElementById('mode-manual');
 var locationLine = document.getElementById('location-line');
 var locationNameEl = document.getElementById('location-name');
+var refreshBtn = document.getElementById('refresh-btn');
+var rainLine = document.getElementById('rain-line');
+var rainOut = document.getElementById('rain-out');
+var hourlySection = document.getElementById('hourly-section');
+var dailySection = document.getElementById('daily-section');
+var hourlyScroll = document.getElementById('hourly-scroll');
+var dailyList = document.getElementById('daily-list');
 var presetsEl = document.querySelector('.presets');
 var manualInputs = [tempEl, humEl, windEl, sunEl];
+var lastCoords = null;
 
 function setManualDisabled(disabled) {
   manualInputs.forEach(function (el) { el.disabled = disabled; });
@@ -229,6 +393,12 @@ function setManualDisabled(disabled) {
 function showLiveUI(show) {
   presetsEl.style.display = show ? 'none' : 'flex';
   locationLine.style.display = show ? 'block' : 'none';
+  refreshBtn.style.display = show ? 'inline-flex' : 'none';
+  if (!show) {
+    rainLine.style.display = 'none';
+    hourlySection.classList.remove('visible');
+    dailySection.classList.remove('visible');
+  }
 }
 
 function setMode(mode) {
@@ -244,40 +414,159 @@ function setMode(mode) {
   }
 }
 
+function dayLabel(offset) {
+  if (offset === 0) return 'Today';
+  if (offset === -1) return 'Yesterday';
+  if (offset === -2) return '2 days ago';
+  var d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString(undefined, { weekday: 'short' });
+}
+
+function hourLabel(iso) {
+  var d = new Date(iso);
+  var h = d.getHours();
+  var suffix = h >= 12 ? 'PM' : 'AM';
+  var h12 = h % 12 === 0 ? 12 : h % 12;
+  return h12 + suffix;
+}
+
+var lastHourlyRaw = null;
+var lastDailyRaw = null;
+
+function renderHourly(hourly) {
+  lastHourlyRaw = hourly || lastHourlyRaw;
+  hourlyScroll.innerHTML = '';
+  if (!hourly || !hourly.length) { hourlySection.classList.remove('visible'); return; }
+  var cal = currentCalibration();
+  hourly.forEach(function (h, i) {
+    var item = document.createElement('div');
+    item.className = 'hour-item';
+    var r = hotnessValue(h.temp, h.humidity, h.wind, h.sun, cal.neutral, cal.k);
+    var rainTxt = (h.precipProb != null && h.precipProb >= 5) ? h.precipProb + '%' : '';
+    item.innerHTML =
+      '<span class="h-time">' + (i === 0 ? 'Now' : hourLabel(h.time)) + '</span>' +
+      '<span class="h-icon">' + weatherIcon(h.code, true) + '</span>' +
+      '<span class="h-index" style="color:' + hIndexColor(r.H) + '" title="' + band(r.H) + '">' + r.H.toFixed(1) + '</span>' +
+      '<span class="h-temp">' + Math.round(h.temp) + '°</span>' +
+      '<span class="h-rain">' + rainTxt + '</span>';
+    hourlyScroll.appendChild(item);
+  });
+  hourlySection.classList.add('visible');
+}
+
+function renderDaily(daily) {
+  lastDailyRaw = daily || lastDailyRaw;
+  dailyList.innerHTML = '';
+  if (!daily || !daily.length) { dailySection.classList.remove('visible'); return; }
+  var cal = currentCalibration();
+
+  var globalMin = Math.min.apply(null, daily.map(function (d) { return d.tempMin; }));
+  var globalMax = Math.max.apply(null, daily.map(function (d) { return d.tempMax; }));
+  var range = Math.max(1, globalMax - globalMin);
+
+  daily.forEach(function (d) {
+    var row = document.createElement('div');
+    row.className = 'day-row' + (d.isToday ? ' is-today' : '');
+    var r = hotnessValue(d.tempMax, d.humidity, d.wind, d.sun, cal.neutral, cal.k);
+    var leftPct = ((d.tempMin - globalMin) / range) * 100;
+    var widthPct = ((d.tempMax - d.tempMin) / range) * 100;
+    var rainTxt = (d.precipProb != null && d.precipProb >= 5) ? d.precipProb + '%' : '';
+    row.innerHTML =
+      '<div class="d-row-main">' +
+        '<span class="d-label">' + dayLabel(d.dayOffset) + '</span>' +
+        '<span class="d-index" style="color:' + hIndexColor(r.H) + '" title="' + band(r.H) + '">' + r.H.toFixed(1) + '</span>' +
+      '</div>' +
+      '<div class="d-row-sub">' +
+        '<span class="d-icon-wrap">' + weatherIcon(d.code, true) + '</span>' +
+        '<span class="d-rain">' + rainTxt + '</span>' +
+        '<span class="d-lo">' + Math.round(d.tempMin) + '°</span>' +
+        '<span class="d-bar-wrap"><span class="d-bar-fill" style="left:' + leftPct + '%;width:' + widthPct + '%;"></span></span>' +
+        '<span class="d-hi">' + Math.round(d.tempMax) + '°</span>' +
+      '</div>';
+    dailyList.appendChild(row);
+  });
+  dailySection.classList.add('visible');
+}
+
+// Re-render the forecasts (without re-fetching) whenever the person tweaks
+// their personal calibration, so the index numbers stay in sync.
+neutralEl.addEventListener('input', function () {
+  renderHourly(lastHourlyRaw);
+  renderDaily(lastDailyRaw);
+});
+sensEl.addEventListener('input', function () {
+  renderHourly(lastHourlyRaw);
+  renderDaily(lastDailyRaw);
+});
+
+function applyLiveData(data) {
+  tempEl.value = Math.round(data.temperature);
+  humEl.value = Math.round(data.humidity);
+  windEl.value = Math.round(data.wind);
+  sunEl.checked = !!data.sun;
+  locationNameEl.textContent = data.locationName;
+  calc();
+
+  if (data.rainChanceNow != null) {
+    rainOut.textContent = Math.round(data.rainChanceNow) + '%';
+    rainLine.style.display = 'flex';
+  } else {
+    rainLine.style.display = 'none';
+  }
+
+  renderHourly(data.hourly);
+  renderDaily(data.daily);
+}
+
 function fetchLiveData() {
   locationNameEl.textContent = 'locating…';
+  refreshBtn.classList.add('spinning');
   if (!navigator.geolocation) {
     locationNameEl.textContent = 'location not supported on this browser — try "Try it yourself"';
+    refreshBtn.classList.remove('spinning');
     return;
   }
   navigator.geolocation.getCurrentPosition(function (pos) {
-    var lat = pos.coords.latitude;
-    var lon = pos.coords.longitude;
-    locationNameEl.textContent = 'fetching weather…';
-    fetch('/api/live', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ latitude: lat, longitude: lon })
-    })
-      .then(function (r) {
-        if (!r.ok) throw new Error('request failed');
-        return r.json();
-      })
-      .then(function (data) {
-        tempEl.value = Math.round(data.temperature);
-        humEl.value = Math.round(data.humidity);
-        windEl.value = Math.round(data.wind);
-        sunEl.checked = !!data.sun;
-        locationNameEl.textContent = data.locationName;
-        calc();
-      })
-      .catch(function () {
-        locationNameEl.textContent = 'could not fetch live weather — try "Try it yourself"';
-      });
+    lastCoords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+    requestWeather(lastCoords);
   }, function () {
     locationNameEl.textContent = 'location permission denied — try "Try it yourself"';
+    refreshBtn.classList.remove('spinning');
   });
 }
+
+function requestWeather(coords) {
+  locationNameEl.textContent = 'fetching weather…';
+  fetch('/api/live', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(coords)
+  })
+    .then(function (r) {
+      if (!r.ok) throw new Error('request failed');
+      return r.json();
+    })
+    .then(function (data) {
+      applyLiveData(data);
+    })
+    .catch(function () {
+      locationNameEl.textContent = 'could not fetch live weather — try "Try it yourself"';
+    })
+    .finally(function () {
+      refreshBtn.classList.remove('spinning');
+    });
+}
+
+refreshBtn.addEventListener('click', function () {
+  if (refreshBtn.classList.contains('spinning')) return;
+  if (lastCoords) {
+    refreshBtn.classList.add('spinning');
+    requestWeather(lastCoords);
+  } else {
+    fetchLiveData();
+  }
+});
 
 modeLiveBtn.addEventListener('click', function () { setMode('live'); });
 modeManualBtn.addEventListener('click', function () { setMode('manual'); });
